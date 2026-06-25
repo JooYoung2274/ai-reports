@@ -1,0 +1,9 @@
+module.exports = {
+  moduleFileExtensions: ['js', 'json', 'ts'],
+  rootDir: '.',
+  testRegex: '.*\\.(spec|e2e-spec)\\.ts$',
+  transform: { '^.+\\.ts$': 'ts-jest' },
+  testEnvironment: 'node',
+  maxWorkers: 1,
+  setupFiles: ['<rootDir>/test/jest.setup.ts'],
+};
