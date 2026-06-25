@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { AppDataSource } from '../data-source';
 import { RawUpload } from '../entities/raw-upload.entity';
 import { IngestService } from './ingest.service';
+import { ParserService } from '../parser/parser.service';
 
 describe('IngestService', () => {
   let moduleRef: any;
@@ -17,7 +18,10 @@ describe('IngestService', () => {
         TypeOrmModule.forRoot({ ...AppDataSource.options, autoLoadEntities: true }),
         TypeOrmModule.forFeature([RawUpload]),
       ],
-      providers: [IngestService],
+      providers: [
+        IngestService,
+        { provide: ParserService, useValue: { processUnparsed: jest.fn().mockResolvedValue(0) } },
+      ],
     }).compile();
     moduleRef = mod;
     service = mod.get(IngestService);

@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { createHash } from 'crypto';
@@ -10,7 +10,7 @@ import { ParserService } from '../parser/parser.service';
 export class IngestService {
   constructor(
     @InjectRepository(RawUpload) private repo: Repository<RawUpload>,
-    @Optional() private parser: ParserService,
+    private parser: ParserService,
   ) {}
 
   async ingest(dto: IngestDto): Promise<IngestResult> {
@@ -32,7 +32,7 @@ export class IngestService {
     // so raw only contains actually-inserted rows. result.identifiers may include empty {}
     // for conflicted rows (truthy), which would cause overcounting with .filter(Boolean).
     const inserted = result.raw?.length ?? 0;
-    if (this.parser) void this.parser.processUnparsed();
+    void this.parser.processUnparsed();
     return { received: rows.length, inserted, duplicates: rows.length - inserted };
   }
 }
