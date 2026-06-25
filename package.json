@@ -1,0 +1,9 @@
+{
+  "name": "ai-report",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down"
+  }
+}
