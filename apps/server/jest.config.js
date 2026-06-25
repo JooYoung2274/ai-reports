@@ -4,4 +4,5 @@ module.exports = {
   testRegex: '.*\\.(spec|e2e-spec)\\.ts$',
   transform: { '^.+\\.ts$': 'ts-jest' },
   testEnvironment: 'node',
+  maxWorkers: 1,
 };
