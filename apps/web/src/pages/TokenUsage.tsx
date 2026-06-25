@@ -13,7 +13,7 @@ export function TokenUsage() {
     const head = 'key,input,output,cacheCreation,cacheRead\n';
     const body = rows.map((r) => `${r.key},${r.input},${r.output},${r.cacheCreation},${r.cacheRead}`).join('\n');
     const url = URL.createObjectURL(new Blob([head + body], { type: 'text/csv' }));
-    const a = document.createElement('a'); a.href = url; a.download = 'tokens.csv'; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = 'tokens.csv'; a.click(); URL.revokeObjectURL(url);
   };
   return (
     <div className="space-y-4">

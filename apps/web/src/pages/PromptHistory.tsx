@@ -1,17 +1,25 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getPrompts } from '../api/reports';
+import { getPrompts, getOverview } from '../api/reports';
 import { DateRangePicker } from '../components/DateRangePicker';
 
 export function PromptHistory() {
   const [range, setRange] = useState({ from: '', to: '' });
   const [q, setQ] = useState('');
-  const { data } = useQuery({ queryKey: ['prompts', range, q], queryFn: () => getPrompts({ ...range, q: q || undefined }) });
+  const [userId, setUserId] = useState('');
+  const [project, setProject] = useState('');
+  const { data: ov } = useQuery({ queryKey: ['overview-users', range], queryFn: () => getOverview(range) });
+  const { data } = useQuery({ queryKey: ['prompts', range, q, userId, project], queryFn: () => getPrompts({ ...range, q: q || undefined, userId: userId || undefined, project: project || undefined }) });
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h1 className="text-xl font-bold">프롬프트 이력</h1>
         <div className="flex gap-2">
+          <select value={userId} onChange={(e) => setUserId(e.target.value)} className="border rounded px-2 py-1">
+            <option value="">전체 사용자</option>
+            {(ov?.ranking ?? []).map((r: { userId: string; email: string }) => (<option key={r.userId} value={r.userId}>{r.email}</option>))}
+          </select>
+          <input placeholder="프로젝트" value={project} onChange={(e) => setProject(e.target.value)} className="border rounded px-2 py-1" />
           <input placeholder="검색" value={q} onChange={(e) => setQ(e.target.value)} className="border rounded px-2 py-1" />
           <DateRangePicker from={range.from} to={range.to} onChange={setRange} />
         </div>

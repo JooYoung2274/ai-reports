@@ -31,6 +31,28 @@ export function UserDetail() {
           </ResponsiveContainer>
         </div>
       )}
+      {data && (
+        <div className="rounded-lg border p-4 bg-white">
+          <h2 className="font-semibold mb-2">모델별 토큰</h2>
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-gray-500"><th>모델</th><th>입력</th><th>출력</th></tr></thead>
+            <tbody>{(data.byModel ?? []).map((m: { model: string; input: number; output: number }) => (
+              <tr key={m.model} className="border-t"><td>{m.model}</td><td>{m.input}</td><td>{m.output}</td></tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+      {data && (
+        <div className="rounded-lg border p-4 bg-white">
+          <h2 className="font-semibold mb-2">프로젝트별 사용량</h2>
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-gray-500"><th>프로젝트</th><th>프롬프트 수</th></tr></thead>
+            <tbody>{(data.byProject ?? []).map((p: { projectPath: string; prompts: number }) => (
+              <tr key={p.projectPath} className="border-t"><td>{p.projectPath}</td><td>{p.prompts}</td></tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
