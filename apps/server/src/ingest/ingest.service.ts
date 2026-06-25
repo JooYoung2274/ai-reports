@@ -1,13 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { createHash } from 'crypto';
 import { RawUpload } from '../entities/raw-upload.entity';
 import { IngestDto, IngestResult } from './dto/ingest.dto';
+import { ParserService } from '../parser/parser.service';
 
 @Injectable()
 export class IngestService {
-  constructor(@InjectRepository(RawUpload) private repo: Repository<RawUpload>) {}
+  constructor(
+    @InjectRepository(RawUpload) private repo: Repository<RawUpload>,
+    @Optional() private parser: ParserService,
+  ) {}
 
   async ingest(dto: IngestDto): Promise<IngestResult> {
     const rows = dto.lines.map((l) => ({
@@ -28,6 +32,7 @@ export class IngestService {
     // so raw only contains actually-inserted rows. result.identifiers may include empty {}
     // for conflicted rows (truthy), which would cause overcounting with .filter(Boolean).
     const inserted = result.raw?.length ?? 0;
+    if (this.parser) void this.parser.processUnparsed();
     return { received: rows.length, inserted, duplicates: rows.length - inserted };
   }
 }
