@@ -7,6 +7,9 @@ export async function uploadLines(url: string, uploadedBy: string, lines: { sour
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ uploadedBy, lines }),
   });
-  if (res.statusCode >= 300) throw new Error(`ingest failed: ${res.statusCode}`);
+  if (res.statusCode >= 300) {
+    const body = await res.body.text();
+    throw new Error(`ingest failed: ${res.statusCode} ${body}`);
+  }
   await res.body.text();
 }
