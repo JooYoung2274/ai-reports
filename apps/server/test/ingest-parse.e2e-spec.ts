@@ -12,8 +12,11 @@ import { RawUpload } from '../src/entities/raw-upload.entity';
 
 describe('Ingest+Parse e2e', () => {
   let app: INestApplication;
+  let priorToken: string | undefined;
 
   beforeAll(async () => {
+    priorToken = process.env.ADMIN_TOKEN;
+    process.env.ADMIN_TOKEN = 'e2e-token';
     const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = mod.createNestApplication();
     await app.init();
@@ -34,7 +37,14 @@ describe('Ingest+Parse e2e', () => {
     await rawUploadRepo.delete({ uploadedBy: 'e2e@co' });
   });
 
-  afterAll(async () => { await app.close(); });
+  afterAll(async () => {
+    await app.close();
+    if (priorToken === undefined) {
+      delete process.env.ADMIN_TOKEN;
+    } else {
+      process.env.ADMIN_TOKEN = priorToken;
+    }
+  });
 
   it('ingest -> parse -> overview', async () => {
     await request(app.getHttpServer()).post('/ingest').send({
@@ -43,7 +53,7 @@ describe('Ingest+Parse e2e', () => {
         timestamp: '2026-06-22T00:00:00.000Z', cwd: '/e', message: { role: 'user', content: 'e2e prompt' } } }],
     }).expect(201);
     await app.get(ParserService).processUnparsed();
-    const res = await request(app.getHttpServer()).get('/reports/prompts?q=e2e prompt').expect(200);
+    const res = await request(app.getHttpServer()).get('/reports/prompts?q=e2e prompt').set('x-admin-token', 'e2e-token').expect(200);
     expect(res.body.items.some((i: any) => i.text === 'e2e prompt')).toBe(true);
   });
 });
