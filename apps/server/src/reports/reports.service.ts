@@ -104,11 +104,17 @@ export class ReportsService {
     if (opts.userId) qb.andWhere('m.user_id = :userId', { userId: opts.userId });
     if (opts.project) qb.andWhere('s.project_path = :project', { project: opts.project });
     if (opts.q) qb.andWhere('m.text ILIKE :q', { q: `%${opts.q}%` });
-    if (opts.cursor) qb.andWhere('m.event_at < :cursor', { cursor: opts.cursor });
-    qb.orderBy('m.event_at', 'DESC').limit(limit + 1);
+    if (opts.cursor) {
+      const [cursorEventAt, cursorId] = opts.cursor.split('|');
+      qb.andWhere('(m.event_at < :cEventAt OR (m.event_at = :cEventAt AND m.id < :cId))', { cEventAt: cursorEventAt, cId: cursorId });
+    }
+    qb.orderBy('m.event_at', 'DESC').addOrderBy('m.id', 'DESC').limit(limit + 1);
     const rows = await qb.getRawMany();
     const items = rows.slice(0, limit);
-    const nextCursor = rows.length > limit ? items[items.length - 1].eventAt : null;
+    const lastItem = items[items.length - 1];
+    const nextCursor = rows.length > limit
+      ? `${lastItem.eventAt instanceof Date ? lastItem.eventAt.toISOString() : lastItem.eventAt}|${lastItem.id}`
+      : null;
     return { items, nextCursor };
   }
 

@@ -19,6 +19,11 @@ describe('ReportsService', () => {
   let sessionRepo: Repository<Session>;
   let messageRepo: Repository<Message>;
 
+  // Keyset-test fixture constants
+  const SAME_TS = '2026-06-21T03:00:00.000Z';
+  const KS_SESSION_ID = 'rs-keyset-1';
+  const KS_MSG_IDS = ['keyset-msg-aaa', 'keyset-msg-bbb', 'keyset-msg-ccc'];
+
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       imports: [
@@ -53,6 +58,16 @@ describe('ReportsService', () => {
     }
     await rawUploadRepo.delete({ uploadedBy: 'rep@co' });
 
+    // Clean up keyset fixtures
+    for (const id of KS_MSG_IDS) await messageRepo.delete({ id });
+    await sessionRepo.delete({ id: KS_SESSION_ID });
+    const ksUser = await userRepo.findOneBy({ email: 'keyset@co' });
+    if (ksUser) {
+      await messageRepo.createQueryBuilder().delete().where('"user_id" = :uid', { uid: ksUser.id }).execute();
+      await sessionRepo.createQueryBuilder().delete().where('"user_id" = :uid', { uid: ksUser.id }).execute();
+      await userRepo.delete({ email: 'keyset@co' });
+    }
+
     await ingest.ingest({ uploadedBy: 'rep@co', lines: [
       { sourceFile: 'r.jsonl', rawJson: { uuid: 'rp1', sessionId: 'rs1', type: 'user',
         timestamp: '2026-06-20T05:00:00.000Z', cwd: '/p', message: { role: 'user', content: 'find bugs please' } } },
@@ -61,9 +76,40 @@ describe('ReportsService', () => {
           content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 50, output_tokens: 7 } } } },
     ]});
     await parser.processUnparsed();
+
+    // Seed keyset fixtures: a user + session + 3 prompts all sharing the SAME event_at
+    const newKsUser = await userRepo.save(userRepo.create({ email: 'keyset@co', displayName: 'Keyset Test' }));
+    await sessionRepo.save(sessionRepo.create({
+      id: KS_SESSION_ID,
+      userId: newKsUser.id,
+      projectPath: '/keyset-project',
+    }));
+    for (let i = 0; i < KS_MSG_IDS.length; i++) {
+      await messageRepo.save(messageRepo.create({
+        id: KS_MSG_IDS[i],
+        sessionId: KS_SESSION_ID,
+        userId: newKsUser.id,
+        role: 'user',
+        type: 'user',
+        isPrompt: true,
+        text: `keyset prompt ${i + 1}`,
+        eventAt: new Date(SAME_TS),
+      }));
+    }
   });
 
-  afterAll(async () => { await moduleRef.close(); });
+  afterAll(async () => {
+    // Clean up keyset fixtures
+    for (const id of KS_MSG_IDS) await messageRepo.delete({ id });
+    await sessionRepo.delete({ id: KS_SESSION_ID });
+    const ksUser = await userRepo.findOneBy({ email: 'keyset@co' });
+    if (ksUser) {
+      await messageRepo.createQueryBuilder().delete().where('"user_id" = :uid', { uid: ksUser.id }).execute();
+      await sessionRepo.createQueryBuilder().delete().where('"user_id" = :uid', { uid: ksUser.id }).execute();
+      await userRepo.delete({ email: 'keyset@co' });
+    }
+    await moduleRef.close();
+  });
 
   it('overview aggregates prompts and tokens', async () => {
     const o = await reports.overview({});
@@ -75,5 +121,30 @@ describe('ReportsService', () => {
   it('prompts returns human prompt text only', async () => {
     const p = await reports.prompts({ q: 'find bugs' });
     expect(p.items[0].text).toContain('find bugs');
+  });
+
+  it('paginates same-timestamp rows with no overlap and no skipped rows', async () => {
+    const ksUser = await userRepo.findOneBy({ email: 'keyset@co' });
+    const userId = ksUser!.id;
+
+    // Page 1: limit=2, expect 2 items + a nextCursor
+    const page1 = await reports.prompts({ userId, limit: 2 });
+    expect(page1.items).toHaveLength(2);
+    expect(page1.nextCursor).not.toBeNull();
+
+    // Page 2: use the cursor from page 1
+    const page2 = await reports.prompts({ userId, limit: 2, cursor: page1.nextCursor! });
+    expect(page2.items.length).toBeGreaterThanOrEqual(1);
+
+    const allIds = [...page1.items.map((i: any) => i.id), ...page2.items.map((i: any) => i.id)];
+
+    // No duplicates across pages
+    const uniqueIds = new Set(allIds);
+    expect(uniqueIds.size).toBe(allIds.length);
+
+    // All 3 seeded same-timestamp rows appear across the two pages
+    for (const id of KS_MSG_IDS) {
+      expect(uniqueIds.has(id)).toBe(true);
+    }
   });
 });
