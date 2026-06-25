@@ -5,4 +5,5 @@ module.exports = {
   transform: { '^.+\\.ts$': 'ts-jest' },
   testEnvironment: 'node',
   maxWorkers: 1,
+  setupFiles: ['<rootDir>/test/jest.setup.ts'],
 };

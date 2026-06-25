@@ -32,7 +32,7 @@ export class IngestService {
     // so raw only contains actually-inserted rows. result.identifiers may include empty {}
     // for conflicted rows (truthy), which would cause overcounting with .filter(Boolean).
     const inserted = result.raw?.length ?? 0;
-    void this.parser.processUnparsed();
+    if (process.env.DISABLE_AUTO_PARSE !== 'true') { void this.parser.processUnparsed(); }
     return { received: rows.length, inserted, duplicates: rows.length - inserted };
   }
 }
