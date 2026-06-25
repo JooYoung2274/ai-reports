@@ -1,5 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { AppDataSource } from '../data-source';
 import { RawUpload } from '../entities/raw-upload.entity';
 import { User } from '../entities/user.entity';
@@ -11,6 +13,11 @@ import { ParserService } from './parser.service';
 describe('ParserService', () => {
   let moduleRef: any;
   let ingest: IngestService; let parser: ParserService; let messages: any;
+  let rawUploadRepo: Repository<RawUpload>;
+  let userRepo: Repository<User>;
+  let sessionRepo: Repository<Session>;
+  let messageRepo: Repository<Message>;
+
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       imports: [
@@ -22,6 +29,30 @@ describe('ParserService', () => {
     moduleRef = mod;
     ingest = mod.get(IngestService); parser = mod.get(ParserService);
     messages = mod.get('MessageRepository');
+    rawUploadRepo = mod.get(getRepositoryToken(RawUpload));
+    userRepo = mod.get(getRepositoryToken(User));
+    sessionRepo = mod.get(getRepositoryToken(Session));
+    messageRepo = mod.get(getRepositoryToken(Message));
+
+    // Clean up this spec's fixtures in FK-safe order so the test is repeatable
+    await messageRepo.delete({ id: 'p1' });
+    await messageRepo.delete({ id: 'a1' });
+    await sessionRepo.delete({ id: 'sess-A' });
+    const user = await userRepo.findOneBy({ email: 'joo@co' });
+    if (user) {
+      await messageRepo
+        .createQueryBuilder()
+        .delete()
+        .where('"user_id" = :uid', { uid: user.id })
+        .execute();
+      await sessionRepo
+        .createQueryBuilder()
+        .delete()
+        .where('"user_id" = :uid', { uid: user.id })
+        .execute();
+      await userRepo.delete({ email: 'joo@co' });
+    }
+    await rawUploadRepo.delete({ uploadedBy: 'joo@co' });
   });
 
   afterAll(async () => { await moduleRef.close(); });

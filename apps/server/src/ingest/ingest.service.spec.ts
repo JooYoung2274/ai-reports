@@ -1,11 +1,16 @@
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { AppDataSource } from '../data-source';
 import { RawUpload } from '../entities/raw-upload.entity';
 import { IngestService } from './ingest.service';
 
 describe('IngestService', () => {
+  let moduleRef: any;
   let service: IngestService;
+  let rawUploadRepo: Repository<RawUpload>;
+
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       imports: [
@@ -14,8 +19,14 @@ describe('IngestService', () => {
       ],
       providers: [IngestService],
     }).compile();
+    moduleRef = mod;
     service = mod.get(IngestService);
+    rawUploadRepo = mod.get(getRepositoryToken(RawUpload));
+    // Clean up rows this spec will create so the test is repeatable
+    await rawUploadRepo.delete({ uploadedBy: 'me@co' });
   });
+
+  afterAll(async () => { await moduleRef.close(); });
 
   it('dedupes identical lines', async () => {
     const line = { sourceFile: 'a.jsonl', rawJson: { uuid: 'x', type: 'user' } };
